@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Vercel Ignore Build Step Script
+# Exit 0 = Skip build (ignore)
+# Exit 1 = Proceed with build
+
+# Get list of changed files
+CHANGED_FILES=$(git diff HEAD^ HEAD --name-only)
+
+# Patterns to ignore (won't trigger a build)
+IGNORE_PATTERNS=(
+  "\.md$"
+  "^docs/"
+  "^scripts/"
+  "^\.agent/"
+  "^\.claude/"
+  "^\.kiro/"
+  "^\.vscode/"
+  "^\.github/"
+  "^\.husky/"
+  "^\.prettierrc$"
+  "^\.prettierignore$"
+  "^\.claudeignore$"
+  "^eslint\.config\.mjs$"
+  "^vitest\.config\.ts$"
+  "^features/Preferences/data/themes\.ts$"
+  "\.test\.(ts|tsx)$"
+  "\.spec\.(ts|tsx)$"
+)
+
+# Build the combined regex pattern
+COMBINED_PATTERN=$(IFS="|"; echo "${IGNORE_PATTERNS[*]}")
+
+# Filter out ignored files and count remaining
+REMAINING=$(echo "$CHANGED_FILES" | grep -vE "$COMBINED_PATTERN" | grep -v '^$' | wc -l)
+
+if [ "$REMAINING" -eq 0 ]; then
+  echo "🔵 Only non-production files changed. Skipping build."
+  exit 0
+else
+  echo "🟢 Production files changed. Proceeding with build."
+  exit 1
+fi

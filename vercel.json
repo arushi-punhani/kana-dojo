@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "ignoreCommand": "git diff HEAD^ HEAD --name-only | grep -vE '^(\\.md$|.*\\.md$|docs/|scripts/|\\.agent/|\\.claude/|\\.kiro/|\\.vscode/|\\.github/|\\.husky/|\\.prettierrc|\\.prettierignore|\\.claudeignore|eslint\\.config\\.mjs|vitest\\.config\\.ts|features/Preferences/data/themes\\.ts|.*\\.test\\.(ts|tsx)$|.*\\.spec\\.(ts|tsx)$)' | wc -l | xargs test 0 -eq",
+  "ignoreCommand": "bash scripts/vercel-ignore.sh",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10
