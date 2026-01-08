@@ -1,11 +1,24 @@
 import DojoMenu from '@/shared/components/Menu/DojoMenu';
 import type { Metadata } from 'next';
 import { generatePageMetadata } from '@/core/i18n/metadata-helpers';
+import { CourseSchema } from '@/shared/components/SEO/CourseSchema';
 
 export async function generateMetadata(): Promise<Metadata> {
   return await generatePageMetadata('kana');
 }
 
 export default function KanaPage() {
-  return <DojoMenu />;
+  return (
+    <>
+      <CourseSchema
+        name="Japanese Hiragana and Katakana Course"
+        description="Master Japanese Hiragana and Katakana syllabaries with interactive games and exercises. Learn all 92 basic kana characters plus dakuon, yoon, and foreign sound variations through multiple training modes."
+        url="https://kanadojo.com/en/kana"
+        educationalLevel="Beginner"
+        skillLevel="Beginner"
+        learningResourceType="Interactive Exercise and Games"
+      />
+      <DojoMenu />
+    </>
+  );
 }

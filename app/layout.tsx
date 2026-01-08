@@ -18,8 +18,8 @@ const msVerificationToken = process.env.MS_VERIFICATION_TOKEN || '';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1.0,
-  maximumScale: 1.0,
-  userScalable: false
+  maximumScale: 5.0,
+  userScalable: true
 };
 
 export const metadata: Metadata = {
@@ -92,9 +92,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://kanadojo.com',
     languages: {
-      en: 'https://kanadojo.com',
-      es: 'https://kanadojo.com',
-      ja: 'https://kanadojo.com'
+      en: 'https://kanadojo.com/en',
+      es: 'https://kanadojo.com/es',
+      ja: 'https://kanadojo.com/ja'
     }
   },
   robots: {

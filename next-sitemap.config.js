@@ -72,6 +72,8 @@ export default {
       changefreq = 'weekly';
     }
 
+    const siteUrl = config.siteUrl || 'https://kanadojo.com';
+
     return {
       loc: path,
       changefreq,
@@ -79,19 +81,19 @@ export default {
       lastmod: config.autoLastmod ? new Date().toISOString() : undefined,
       alternateRefs: [
         {
-          href: `/en${basePath}`,
+          href: `${siteUrl}/en${basePath}`,
           hreflang: 'en'
         },
         {
-          href: `/es${basePath}`,
+          href: `${siteUrl}/es${basePath}`,
           hreflang: 'es'
         },
         {
-          href: `/ja${basePath}`,
+          href: `${siteUrl}/ja${basePath}`,
           hreflang: 'ja'
         },
         {
-          href: `/en${basePath}`,
+          href: `${siteUrl}/en${basePath}`,
           hreflang: 'x-default'
         }
       ]

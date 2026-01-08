@@ -67,13 +67,6 @@ export const kanaDojoSchema = {
         priceCurrency: 'USD',
         availability: 'https://schema.org/InStock'
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '5',
-        ratingCount: '1',
-        bestRating: '5',
-        worstRating: '1'
-      },
       description:
         'Interactive Japanese learning platform with Hiragana, Katakana, Kanji, and Vocabulary training',
       featureList: [
