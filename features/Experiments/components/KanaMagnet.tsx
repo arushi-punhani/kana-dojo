@@ -19,7 +19,7 @@ const KanaMagnet = () => {
       vy: number;
     }>
   >([]);
-  const frameRef = useRef<number>();
+  const frameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const initial = Array.from({ length: 30 }, (_, i) => ({

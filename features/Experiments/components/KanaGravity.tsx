@@ -17,7 +17,7 @@ const KanaGravity = () => {
       vy: number;
     }>
   >([]);
-  const frameRef = useRef<number>();
+  const frameRef = useRef<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
