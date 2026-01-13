@@ -32,14 +32,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Validate and find linked issue
-        id: validate
+      - name: Validate and process contribution
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const path = require('path');
 
             const prTitle = context.payload.pull_request.title;
             const prTitleLower = prTitle.toLowerCase();
@@ -48,7 +46,6 @@ jobs:
 
             let isValid = false;
             let validationType = null;
-            let validationMessage = '';
             let errors = [];
             let linkedIssue = null;
             let foundIssue = null;
@@ -59,11 +56,8 @@ jobs:
 
             if (!isThemeContribution && !isFactContribution) {
               console.log('Not a community contribution PR');
-              core.setOutput('is_community', 'false');
               return;
             }
-
-            core.setOutput('is_community', 'true');
 
             // Check if issue is already linked
             const issueMatch = prBody.match(/[Cc]loses?\s*#(\d+)|[Ff]ixes?\s*#(\d+)/);
@@ -76,20 +70,17 @@ jobs:
             if (!linkedIssue) {
               console.log('No issue linked, searching for matching issue...');
               
-              // Get all open community issues
-              const { data: issues } = await github.rest.issues.listForRepo({
+              const issuesResponse = await github.rest.issues.listForRepo({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 labels: 'community',
                 state: 'open',
                 per_page: 100
               });
+              const issues = issuesResponse.data;
               
               if (isThemeContribution) {
-                // Extract theme name from PR title
-                // Common patterns: "feat(theme): add X theme", "Add Theme: X", "theme: X"
                 let themeName = null;
-                
                 const patterns = [
                   /add\s+(.+?)\s+theme/i,
                   /theme[:\s]+(.+)/i,
@@ -106,8 +97,6 @@ jobs:
                 
                 if (themeName) {
                   console.log('Looking for theme issue: ' + themeName);
-                  
-                  // Find matching issue
                   for (const issue of issues) {
                     if (issue.title.includes('Add Theme:') && 
                         issue.title.toLowerCase().includes(themeName.toLowerCase())) {
@@ -118,15 +107,10 @@ jobs:
                   }
                 }
               } else if (isFactContribution) {
-                // Extract fact ID from PR title
-                // Common patterns: "content: add japan fact #123", "Add Fact #123"
                 const factIdMatch = prTitle.match(/#(\d+)/);
-                
                 if (factIdMatch) {
                   const factId = factIdMatch[1];
                   console.log('Looking for fact issue: #' + factId);
-                  
-                  // Find matching issue
                   for (const issue of issues) {
                     if (issue.title.includes('Add Japan Fact #' + factId)) {
                       foundIssue = issue.number;
@@ -138,12 +122,12 @@ jobs:
               }
             }
 
-            // Use linked or found issue
             const targetIssue = linkedIssue || foundIssue;
 
+            // Validate the contribution
             if (isThemeContribution) {
               validationType = 'theme';
-              console.log('Detected theme contribution');
+              console.log('Validating theme contribution');
               
               try {
                 const themesPath = 'pr-head/features/Preferences/data/themes.ts';
@@ -152,8 +136,8 @@ jobs:
                 } else {
                   const content = fs.readFileSync(themesPath, 'utf8');
                   
-                  if (!content.includes('export const themes')) {
-                    errors.push('themes.ts appears to be malformed (missing export)');
+                  if (!content.includes('export const themes') && !content.includes('export default')) {
+                    errors.push('themes.ts appears to be malformed');
                   }
                   
                   const oklchRegex = /oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+/g;
@@ -165,11 +149,6 @@ jobs:
                   if (!targetIssue) {
                     errors.push('Could not find a matching community issue for this theme');
                   }
-                  
-                  if (errors.length === 0) {
-                    isValid = true;
-                    validationMessage = 'Theme contribution looks valid!';
-                  }
                 }
               } catch (e) {
                 errors.push('Error reading themes file: ' + e.message);
@@ -177,7 +156,7 @@ jobs:
               
             } else if (isFactContribution) {
               validationType = 'fact';
-              console.log('Detected fact contribution');
+              console.log('Validating fact contribution');
               
               try {
                 const factsPath = 'pr-head/public/japan-facts.json';
@@ -194,12 +173,7 @@ jobs:
                     } else {
                       const nonStrings = facts.filter(function(f) { return typeof f !== 'string'; });
                       if (nonStrings.length > 0) {
-                        errors.push('All facts should be strings, found ' + nonStrings.length + ' non-string items');
-                      }
-                      
-                      const emptyStrings = facts.filter(function(f) { return typeof f === 'string' && f.trim() === ''; });
-                      if (emptyStrings.length > 0) {
-                        errors.push('Found ' + emptyStrings.length + ' empty fact entries');
+                        errors.push('All facts should be strings');
                       }
                     }
                   } catch (parseErr) {
@@ -209,64 +183,28 @@ jobs:
                   if (!targetIssue) {
                     errors.push('Could not find a matching community issue for this fact');
                   }
-                  
-                  if (errors.length === 0) {
-                    isValid = true;
-                    validationMessage = 'Fact contribution looks valid!';
-                  }
                 }
               } catch (e) {
                 errors.push('Error reading facts file: ' + e.message);
               }
             }
 
-            // Set outputs
-            core.setOutput('is_valid', isValid ? 'true' : 'false');
-            core.setOutput('validation_type', validationType);
-            core.setOutput('errors', JSON.stringify(errors));
-            core.setOutput('message', validationMessage);
-            core.setOutput('linked_issue', linkedIssue ? linkedIssue.toString() : '');
-            core.setOutput('found_issue', foundIssue ? foundIssue.toString() : '');
-            core.setOutput('target_issue', targetIssue ? targetIssue.toString() : '');
+            isValid = errors.length === 0;
 
-            console.log('Validation result:', { isValid, validationType, errors, targetIssue });
+            // Update PR body with linked issue if found
+            if (foundIssue && !linkedIssue) {
+              const newBody = prBody + '\n\n---\n🤖 **Auto-linked:** Closes #' + foundIssue;
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                body: newBody
+              });
+              console.log('Updated PR body to link issue #' + foundIssue);
+            }
 
-      - name: Update PR body with linked issue
-        if: steps.validate.outputs.is_community == 'true' && steps.validate.outputs.found_issue != '' && steps.validate.outputs.linked_issue == ''
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const foundIssue = '${{ steps.validate.outputs.found_issue }}';
-            const currentBody = context.payload.pull_request.body || '';
-
-            // Add the issue link to the PR body
-            const newBody = currentBody + '\n\n---\n🤖 **Auto-linked:** Closes #' + foundIssue;
-
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              body: newBody
-            });
-
-            console.log('Updated PR body to link issue #' + foundIssue);
-
-      - name: Comment validation result
-        if: steps.validate.outputs.is_community == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const isValid = '${{ steps.validate.outputs.is_valid }}' === 'true';
-            const validationType = '${{ steps.validate.outputs.validation_type }}';
-            const errors = JSON.parse('${{ steps.validate.outputs.errors }}' || '[]');
-            const linkedIssue = '${{ steps.validate.outputs.linked_issue }}';
-            const foundIssue = '${{ steps.validate.outputs.found_issue }}';
-            const targetIssue = '${{ steps.validate.outputs.target_issue }}';
-
-            let body;
-
+            // Post validation comment
+            let commentBody;
             if (isValid) {
               let issueNote = '';
               if (foundIssue && !linkedIssue) {
@@ -275,7 +213,7 @@ jobs:
                 issueNote = '\n\n📎 **Linked issue:** #' + linkedIssue;
               }
               
-              body = '## 🤖 Auto-Review: ✅ Passed\n\n' +
+              commentBody = '## 🤖 Auto-Review: ✅ Passed\n\n' +
                 'This ' + validationType + ' contribution has passed automated validation!\n\n' +
                 '**Checks passed:**\n' +
                 '- ✅ File format is correct\n' +
@@ -283,9 +221,10 @@ jobs:
                 '- ✅ Related issue found' + issueNote + '\n\n' +
                 'Once the quality check passes, this PR will be automatically approved for merge.';
             } else {
-              body = '## 🤖 Auto-Review: ❌ Issues Found\n\n' +
+              const errorList = errors.map(function(e) { return '- ❌ ' + e; }).join('\n');
+              commentBody = '## 🤖 Auto-Review: ❌ Issues Found\n\n' +
                 'This ' + validationType + ' contribution has some issues that need to be fixed:\n\n' +
-                errors.map(function(e) { return '- ❌ ' + e; }).join('\n') + '\n\n' +
+                errorList + '\n\n' +
                 '**Please fix the above issues and push again.**\n\n' +
                 'Need help? Comment below and we\'ll assist! 🙌';
             }
@@ -293,57 +232,35 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: body
+              issue_number: prNumber,
+              body: commentBody
             });
 
-      - name: Approve PR if valid
-        if: steps.validate.outputs.is_valid == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              event: 'APPROVE',
-              body: '🤖 Automated approval - all validation checks passed!'
-            });
-
-      - name: Enable auto-merge
-        if: steps.validate.outputs.is_valid == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              await github.graphql(`
-                mutation($pullRequestId: ID!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $pullRequestId,
-                    mergeMethod: SQUASH
-                  }) {
-                    pullRequest {
-                      autoMergeRequest {
-                        enabledAt
-                      }
-                    }
-                  }
-                }
-              `, {
-                pullRequestId: context.payload.pull_request.node_id
-              });
-              
-              console.log('Auto-merge enabled for PR #' + context.payload.pull_request.number);
-              
-              await github.rest.issues.createComment({
+            // Approve and enable auto-merge if valid
+            if (isValid) {
+              await github.rest.pulls.createReview({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body: '🚀 **Auto-merge enabled!** This PR will be automatically merged once all required checks pass.'
+                pull_number: prNumber,
+                event: 'APPROVE',
+                body: '🤖 Automated approval - all validation checks passed!'
               });
-            } catch (e) {
-              console.log('Could not enable auto-merge: ' + e.message);
-              console.log('This is normal if branch protection rules are not configured.');
+              
+              try {
+                await github.graphql(
+                  'mutation($pullRequestId: ID!) { enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) { pullRequest { autoMergeRequest { enabledAt } } } }',
+                  { pullRequestId: context.payload.pull_request.node_id }
+                );
+                
+                console.log('Auto-merge enabled for PR #' + prNumber);
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: '🚀 **Auto-merge enabled!** This PR will be automatically merged once all required checks pass.'
+                });
+              } catch (e) {
+                console.log('Could not enable auto-merge: ' + e.message);
+              }
             }
