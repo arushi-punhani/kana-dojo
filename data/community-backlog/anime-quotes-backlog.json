@@ -177,7 +177,10 @@
     "english": "But... that's what I like.",
     "anime": "JoJo's Bizarre Adventure: Diamond is Unbreakable",
     "character": "Yoshikage Kira",
-    "issued": true
+    "issued": true,
+    "completed": true,
+    "completedBy": "YakVash",
+    "completedPR": 2858
   },
   {
     "id": 17,
@@ -231,7 +234,8 @@
     "english": "If you give up, that's the end of the game.",
     "anime": "Slam Dunk",
     "character": "Kaede Rukawa",
-    "issued": false
+    "issued": false,
+    "completed": true
   },
   {
     "id": 22,
@@ -252,7 +256,7 @@
     "english": "Dance to my beautiful technique!",
     "anime": "The Prince of Tennis",
     "character": "Keigo Atobe",
-    "issued": false
+    "issued": true
   },
   {
     "id": 24,
